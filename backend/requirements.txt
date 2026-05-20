@@ -8,3 +8,8 @@ mediapipe==0.10.9
 numpy==1.24.3
 pillow==10.1.0
 python-dotenv==1.0.0
+httpx==0.25.1
+redis==5.0.1
+opencv-python-headless==4.8.1.78
+passlib[bcrypt]==1.7.4
+# llama-cpp-python==0.2.26   (commented out for now)
