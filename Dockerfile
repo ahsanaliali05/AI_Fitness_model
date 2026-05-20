@@ -1,15 +1,16 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-# Install system dependencies for MediaPipe and OpenCV
+# Install system dependencies for MediaPipe, OpenCV, and NumPy
 RUN apt-get update && apt-get install -y \
-    libgl1 \
+    libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    libopencv-dev \
     cmake \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
