@@ -18,7 +18,6 @@ const staggerContainer = {
   visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
 };
 
-// All possible challenges (source of truth)
 const ALL_CHALLENGES = [
   { id: 1, name: "7-Day Squat Challenge", description: "Starts in 2 days" },
   { id: 2, name: "10,000 Steps Daily", description: "Active now" },
@@ -56,7 +55,6 @@ export default function Dashboard() {
     api.get('/api/workout/recent')
       .then(res => setRecentWorkouts(res.data))
       .catch(() => {});
-    // Load completed challenges
     api.get('/api/challenges/completed')
       .then(res => {
         const ids = res.data.map(c => c.challenge_id);
@@ -71,6 +69,39 @@ export default function Dashboard() {
       setCompletedChallengeIds(prev => [...prev, challenge.id]);
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to mark challenge as complete');
+    }
+  };
+
+  const sendTestReminder = async () => {
+    try {
+      const res = await api.post('/api/reminders/schedule', { 
+        reminder_type: 'workout', 
+        remind_at: new Date().toISOString() 
+      });
+      alert(res.data.message || 'Reminder sent!');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to send reminder.');
+    }
+  };
+
+  // WhatsApp reminder for your specific number (03174863627)
+  const sendWhatsAppReminder = async () => {
+    // Pakistan code: +92, number 3174863627 (without leading zero)
+    const phoneNumber = "923174863627";
+    try {
+      const res = await api.post('/api/reminders/whatsapp', { 
+        reminder_type: 'workout', 
+        phone_number: phoneNumber 
+      });
+      if (res.data.whatsapp_link) {
+        window.open(res.data.whatsapp_link, '_blank');
+        alert("WhatsApp opened. Tap Send to send the reminder to yourself.");
+      } else {
+        alert("Failed to generate WhatsApp link.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate WhatsApp link. Check backend endpoint.');
     }
   };
 
@@ -93,7 +124,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Hero Section (unchanged) */}
+      {/* Hero Section */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-50 to-white p-8 md:p-12 mb-12 shadow-sm border border-green-100">
         <div className="relative z-10">
           <span className="inline-block px-3 py-1 text-xs font-semibold tracking-wider bg-green-100 text-green-700 rounded-full mb-4">
@@ -114,6 +145,18 @@ export default function Dashboard() {
                 Complete Profile
               </Link>
             )}
+            <button 
+              onClick={sendTestReminder}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition flex items-center gap-2 shadow-sm"
+            >
+              📧 Test Reminder
+            </button>
+            <button 
+              onClick={sendWhatsAppReminder}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition flex items-center gap-2 shadow-sm"
+            >
+              💬 WhatsApp Reminder
+            </button>
           </div>
         </div>
       </section>
@@ -227,7 +270,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Main Features Grid (unchanged) */}
+      {/* Main Features Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
         <div className="lg:col-span-2">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Everything You Need</h2>
@@ -256,7 +299,7 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Top Exercises (dummy) */}
+        {/* Top Exercises */}
         <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-800">
             <FiAward className="text-yellow-500" /> Top Exercises
