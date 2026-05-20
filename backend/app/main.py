@@ -32,12 +32,17 @@ except:
     redis_client = None
     print("Redis not available – caching disabled")
 
+
+
 app = FastAPI()
+
+# CORS middleware – must be added BEFORE any other middleware or routes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://ai-fitness-model-oimqtxm2n-ahsan-s-projects5.vercel.app",
-        "http://localhost:5173",
+        "https://ai-fitness-model-mu.vercel.app",          # your current Vercel URL
+        "https://ai-fitness-model-oimqtxm2n-ahsan-s-projects5.vercel.app",  # your other Vercel URL
+        "http://localhost:5173",                            # local dev
     ],
     allow_credentials=True,
     allow_methods=["*"],
