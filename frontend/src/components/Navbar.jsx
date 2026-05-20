@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom';
-import { FiHome, FiActivity, FiDroplet, FiMessageSquare, FiBarChart2, FiUser, FiMapPin, FiLogOut } from 'react-icons/fi';
+import { 
+  FiHome, FiActivity, FiDroplet, FiMessageSquare, 
+  FiBarChart2, FiUser, FiMapPin, FiLogOut, 
+  FiCalendar, FiUsers 
+} from 'react-icons/fi';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: FiHome },
@@ -9,6 +13,8 @@ const navItems = [
   { to: '/progress', label: 'Progress', icon: FiBarChart2 },
   { to: '/profile-setup', label: 'Profile', icon: FiUser },
   { to: '/gyms', label: 'Gyms', icon: FiMapPin },
+  { to: '/workout-plan', label: 'Plans', icon: FiCalendar },   // new
+  { to: '/trainers', label: 'Trainers', icon: FiUsers },       // new
 ];
 
 export default function Navbar() {
