@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies required by MediaPipe and OpenCV
+# Install system dependencies for MediaPipe and OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -20,7 +20,7 @@ COPY backend/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire backend code
+# Copy the rest of the backend code
 COPY backend/ ./backend/
 
 # Set working directory to where main.py lives
