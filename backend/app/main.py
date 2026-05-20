@@ -17,9 +17,10 @@ from .reference_pose import REFERENCE_SQUAT, compute_pose_similarity
 from .database import get_db
 from .models import User, UserProfile, DietPlan, ProgressLog, ChatLog, Gym, Trainer, WorkoutSession, CompletedChallenge, TrainerBooking, WorkoutPlan
 from .auth import create_access_token, get_current_user
-from .chat_llama import get_chat_response
+from .chat_groq import get_chat_response
 from pathlib import Path
 import time
+
 
 # Optional Redis
 try:
