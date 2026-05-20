@@ -87,3 +87,39 @@ class CompletedChallenge(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     challenge_id = Column(Integer, nullable=False)
     completed_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    
+class TrainerBooking(Base):
+    __tablename__ = "trainer_bookings"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    trainer_id = Column(Integer, nullable=False)
+    trainer_name = Column(String(100))
+    booking_date = Column(DateTime, nullable=False)
+    status = Column(String(20), default="pending")  # pending, confirmed, cancelled
+    created_at = Column(DateTime, server_default=func.now())
+
+class SupplementLog(Base):
+    __tablename__ = "supplement_logs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    supplement_name = Column(String(100))
+    taken_at = Column(DateTime, server_default=func.now())
+
+class WorkoutPlan(Base):
+    __tablename__ = "workout_plans"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    plan_data = Column(JSON, nullable=False)
+    goal = Column(String(50))
+    duration_days = Column(Integer)
+    created_at = Column(DateTime, server_default=func.now())
+    
+class ProgressPhoto(Base):
+    __tablename__ = "progress_photos"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    photo_type = Column(String(20))  # 'before' or 'after'
+    photo_url = Column(String(500))
+    uploaded_at = Column(DateTime, server_default=func.now())
+    notes = Column(Text, nullable=True)
