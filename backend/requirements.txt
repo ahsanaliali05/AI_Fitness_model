@@ -16,3 +16,4 @@ opencv-python-headless==4.8.1.78
 llama-cpp-python==0.2.26
 passlib[bcrypt]==1.7.4
 protobuf==3.20.3
+groq
