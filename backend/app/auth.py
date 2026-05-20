@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 
-SECRET_KEY = "your-secret-key-change-this-in-production"
+SECRET_KEY = "f6f8477dd98c70e742a36018245eda3b81e20f6e6ad8d1cdf9457c854eefe644"
 ALGORITHM = "HS256"
 security = HTTPBearer()
 
