@@ -1,3 +1,5 @@
+setuptools==75.6.0
+wheel==0.45.1
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
@@ -11,5 +13,5 @@ python-dotenv==1.0.0
 httpx==0.25.1
 redis==5.0.1
 opencv-python-headless==4.8.1.78
+llama-cpp-python==0.2.26
 passlib[bcrypt]==1.7.4
-# llama-cpp-python==0.2.26   (commented out for now)
