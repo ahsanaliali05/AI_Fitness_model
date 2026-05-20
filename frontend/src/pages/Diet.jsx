@@ -11,6 +11,7 @@ export default function Diet() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [supplements, setSupplements] = useState(null);  // NEW
   const navigate = useNavigate();
 
   const generatePlan = async () => {
@@ -30,6 +31,15 @@ export default function Diet() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSupplements = async () => {   // NEW
+    try {
+      const res = await api.get('/api/supplements/recommend');
+      setSupplements(res.data);
+    } catch (err) {
+      alert('Complete your profile first to get supplement recommendations.');
     }
   };
 
@@ -106,10 +116,27 @@ export default function Diet() {
           </div>
         </div>
 
-        <button onClick={generatePlan} disabled={loading} className="btn-primary w-full md:w-auto">
-          {loading ? 'Generating...' : `Generate ${duration}-Day Plan`}
-        </button>
+        {/* Buttons: Generate + Supplement Recs */}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={generatePlan} disabled={loading} className="btn-primary flex-1">
+            {loading ? 'Generating...' : `Generate ${duration}-Day Plan`}
+          </button>
+          <button onClick={fetchSupplements} className="btn-outline">
+            💊 Supplement Recs
+          </button>
+        </div>
       </div>
+
+      {/* Supplement Recommendations Display */}
+      {supplements && (
+        <div className="card mb-6 bg-green-50 border-green-200">
+          <h3 className="font-semibold text-green-800">Recommended Supplements</h3>
+          <ul className="list-disc ml-5 mt-2">
+            {supplements.recommendations.map((sup, i) => <li key={i}>{sup}</li>)}
+          </ul>
+          <p className="text-xs text-gray-500 mt-2">{supplements.note}</p>
+        </div>
+      )}
 
       {plan && (
         <>
