@@ -10,6 +10,8 @@ import Chatbot from './pages/Chatbot';
 import Progress from './pages/Progress';
 import ProfileSetup from './pages/ProfileSetup';
 import Gyms from './pages/Gyms';
+import WorkoutPlan from './pages/WorkoutPlan';        // ✅ Add this import
+import TrainerBooking from './pages/TrainerBooking'; // ✅ Add this import
 import api from './api';
 
 function App() {
@@ -59,6 +61,8 @@ function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile-setup" element={<ProfileSetup />} />
           <Route path="/gyms" element={<Gyms />} />
+          <Route path="/workout-plan" element={<WorkoutPlan />} />
+          <Route path="/trainers" element={<TrainerBooking />} />        
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
