@@ -33,7 +33,16 @@ except:
     print("Redis not available – caching disabled")
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://ai-fitness-model-oimqtxm2n-ahsan-s-projects5.vercel.app",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 pose_engine = MoveNetEngine()
 
