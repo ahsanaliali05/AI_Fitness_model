@@ -66,7 +66,6 @@ export default function CameraView({ exercise, token }) {
   const masterCanvasRef = useRef(null);
   const [feedback, setFeedback] = useState('');
   const [similarity, setSimilarity] = useState(null);
-  // Session tracking for saving workout
   const [sessionReps, setSessionReps] = useState(0);
   const [sessionAccuracySum, setSessionAccuracySum] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -77,7 +76,7 @@ export default function CameraView({ exercise, token }) {
   const [lungeFrame, setLungeFrame] = useState(0);
   const [curlFrame, setCurlFrame] = useState(0);
   const [repCount, setRepCount] = useState(0);
-  const [lastState, setLastState] = useState(null); // 'down' or 'up'
+  const [lastState, setLastState] = useState(null);
   const [displayAccuracy, setDisplayAccuracy] = useState(0);
 
   // Animate masters
@@ -95,7 +94,7 @@ export default function CameraView({ exercise, token }) {
     return () => clearInterval(interval);
   }, [exercise]);
 
-  // Draw Squat Master (cyan stick figure)
+  // Drawing masters (unchanged)
   const drawSquatMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'squat') return;
@@ -109,23 +108,19 @@ export default function CameraView({ exercise, token }) {
     const hipY = 110 + progress * 35;
     const kneeY = 180 + progress * 10;
     const shoulderY = 60 + progress * 20;
-    // head
     ctx.beginPath();
     ctx.arc(100, shoulderY - 25, 12, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(100, shoulderY);
     ctx.lineTo(100, hipY);
     ctx.stroke();
-    // arms
     ctx.beginPath();
     ctx.moveTo(100, shoulderY + 10);
     ctx.lineTo(70, shoulderY + 40);
     ctx.moveTo(100, shoulderY + 10);
     ctx.lineTo(130, shoulderY + 40);
     ctx.stroke();
-    // legs
     ctx.beginPath();
     ctx.moveTo(100, hipY);
     ctx.lineTo(80, kneeY);
@@ -134,7 +129,6 @@ export default function CameraView({ exercise, token }) {
     ctx.lineTo(120, kneeY);
     ctx.lineTo(130, 250);
     ctx.stroke();
-    // joints
     [[100, shoulderY], [100, hipY], [80, kneeY], [120, kneeY], [70, 250], [130, 250]].forEach(([x, y]) => {
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, 2 * Math.PI);
@@ -142,7 +136,6 @@ export default function CameraView({ exercise, token }) {
     });
   }, [squatFrame, exercise]);
 
-  // Draw Push‑up Master (cyan stick figure moving up/down)
   const drawPushupMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'pushup') return;
@@ -158,16 +151,13 @@ export default function CameraView({ exercise, token }) {
     const shoulderX = 100;
     const elbowX = 70;
     const wristX = 50;
-    // head
     ctx.beginPath();
     ctx.arc(shoulderX, chestY - 20, 10, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(shoulderX, chestY);
     ctx.lineTo(shoulderX, hipY);
     ctx.stroke();
-    // arms (bent)
     ctx.beginPath();
     ctx.moveTo(shoulderX, chestY + 5);
     ctx.lineTo(elbowX, chestY + 20);
@@ -178,7 +168,6 @@ export default function CameraView({ exercise, token }) {
     ctx.lineTo(130, chestY + 20);
     ctx.lineTo(150, chestY + 35);
     ctx.stroke();
-    // legs (straight down)
     ctx.beginPath();
     ctx.moveTo(shoulderX, hipY);
     ctx.lineTo(85, hipY + 40);
@@ -191,7 +180,6 @@ export default function CameraView({ exercise, token }) {
     ctx.stroke();
   }, [pushupFrame, exercise]);
 
-  // Draw Lunge Master (simple lunge animation)
   const drawLungeMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'lunge') return;
@@ -203,23 +191,19 @@ export default function CameraView({ exercise, token }) {
     ctx.fillStyle = '#00ffff';
     const progress = Math.sin((lungeFrame / 100) * Math.PI * 2);
     const kneeY = 180 + progress * 15;
-    // head
     ctx.beginPath();
     ctx.arc(100, 60, 12, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(100, 140);
     ctx.stroke();
-    // arms
     ctx.beginPath();
     ctx.moveTo(100, 80);
     ctx.lineTo(70, 100);
     ctx.moveTo(100, 80);
     ctx.lineTo(130, 100);
     ctx.stroke();
-    // legs – forward leg bent, back leg straight
     ctx.beginPath();
     ctx.moveTo(100, 140);
     ctx.lineTo(80, kneeY);
@@ -232,7 +216,6 @@ export default function CameraView({ exercise, token }) {
     ctx.stroke();
   }, [lungeFrame, exercise]);
 
-  // Draw Bicep Curl Master (arm curling animation)
   const drawCurlMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'curl') return;
@@ -244,28 +227,23 @@ export default function CameraView({ exercise, token }) {
     ctx.fillStyle = '#00ffff';
     const progress = Math.sin((curlFrame / 100) * Math.PI * 2);
     const elbowY = 120 + progress * 15;
-    // head
     ctx.beginPath();
     ctx.arc(100, 50, 12, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(100, 60);
     ctx.lineTo(100, 110);
     ctx.stroke();
-    // left arm (curling)
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(80, 90);
     ctx.lineTo(60, elbowY);
     ctx.stroke();
-    // right arm (curling)
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(120, 90);
     ctx.lineTo(140, elbowY);
     ctx.stroke();
-    // legs
     ctx.beginPath();
     ctx.moveTo(100, 110);
     ctx.lineTo(85, 180);
@@ -285,7 +263,7 @@ export default function CameraView({ exercise, token }) {
     else if (exercise === 'curl') drawCurlMaster();
   }, [drawSquatMaster, drawPushupMaster, drawLungeMaster, drawCurlMaster, exercise]);
 
-  // Draw user skeleton on canvas (scaled to container)
+  // Draw user skeleton
   const drawSkeleton = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -327,7 +305,6 @@ export default function CameraView({ exercise, token }) {
     });
   }, [keypoints, cameraMode]);
 
-  // Animation loop for skeleton
   useEffect(() => {
     let frame;
     const animate = () => {
@@ -338,7 +315,6 @@ export default function CameraView({ exercise, token }) {
     return () => cancelAnimationFrame(frame);
   }, [drawSkeleton]);
 
-  // Resize observer
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver(() => drawSkeleton());
@@ -346,7 +322,7 @@ export default function CameraView({ exercise, token }) {
     return () => observer.disconnect();
   }, [drawSkeleton]);
 
-  // Capture frame and send to backend
+  // Capture frame and send to backend using api (not localhost)
   const captureAndSend = useCallback(async () => {
     if (cameraMode === 'laptop' && !webcamRef.current) return;
     if (cameraMode === 'mobile' && !mobileImgRef.current) return;
@@ -371,12 +347,11 @@ export default function CameraView({ exercise, token }) {
     formData.append('exercise', exercise);
 
     try {
-      const res = await fetch('http://localhost:8000/api/pose/compare', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+      // ✅ Use api instead of hardcoded localhost
+      const response = await api.post('/api/pose/compare', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      const data = await res.json();
+      const data = response.data;
       setFeedback(data.feedback);
       if (data.similarity !== undefined) setSimilarity(data.similarity);
       if (data.user_keypoints) {
@@ -398,7 +373,6 @@ export default function CameraView({ exercise, token }) {
           if (w && h) {
             const absKeypoints = data.user_keypoints.map(([x, y]) => [x * w, y * h]);
             setKeypoints(absKeypoints);
-            // --- Angle calculation and rep counting ---
             let currentAngle = null;
             let accuracy = null;
             if (exercise === 'squat') {
@@ -407,10 +381,9 @@ export default function CameraView({ exercise, token }) {
               const ankle = absKeypoints[27];
               if (hip && knee && ankle) {
                 currentAngle = computeAngle(hip, knee, ankle);
-                accuracy = data.similarity; // use backend similarity for squat
+                accuracy = data.similarity;
               }
             } else if (exercise === 'lunge') {
-              // Use left leg (hip23, knee25, ankle27) – user should face sideways
               const hip = absKeypoints[23];
               const knee = absKeypoints[25];
               const ankle = absKeypoints[27];
@@ -427,7 +400,6 @@ export default function CameraView({ exercise, token }) {
                 accuracy = Math.max(0, 100 - (Math.abs(currentAngle - 90) / 90) * 100);
               }
             } else if (exercise === 'curl') {
-              // Use right arm (shoulder12, elbow14, wrist16)
               const shoulder = absKeypoints[12];
               const elbow = absKeypoints[14];
               const wrist = absKeypoints[16];
@@ -438,17 +410,15 @@ export default function CameraView({ exercise, token }) {
             }
             if (currentAngle !== null) {
               setDisplayAccuracy(accuracy !== null ? Math.round(accuracy) : 0);
-              // Rep counting thresholds
               let downThresh, upThresh;
               if (exercise === 'squat') { downThresh = 90; upThresh = 110; }
               else if (exercise === 'pushup') { downThresh = 90; upThresh = 140; }
-              else { downThresh = 90; upThresh = 110; } // lunge and curl
+              else { downThresh = 90; upThresh = 110; }
               if (currentAngle < downThresh && lastState !== 'down') {
                 setLastState('down');
               } else if (currentAngle > upThresh && lastState === 'down') {
                 setLastState('up');
                 setRepCount(prev => prev + 1);
-                // Session tracking
                 setSessionReps(prev => prev + 1);
                 setSessionAccuracySum(prev => prev + (accuracy !== null ? accuracy : 0));
                 setSessionCount(prev => prev + 1);
@@ -458,34 +428,18 @@ export default function CameraView({ exercise, token }) {
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error('Pose API error:', err);
       setFeedback('Error: ' + err.message);
     }
-  }, [exercise, token, cameraMode, lastState]);
+  }, [exercise, cameraMode, lastState]);
 
-  // Periodic capture (every 500ms)
   useEffect(() => {
     if (!isDetecting) return;
     const interval = setInterval(captureAndSend, 500);
     return () => clearInterval(interval);
   }, [isDetecting, captureAndSend]);
 
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (sessionReps > 0) {
-        const avgAccuracy = sessionCount > 0 ? sessionAccuracySum / sessionCount : 0;
-        navigator.sendBeacon('/api/workout/save', JSON.stringify({
-          exercise: exercise,
-          rep_count: sessionReps,
-          avg_accuracy: avgAccuracy
-        }));
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [sessionReps, sessionAccuracySum, sessionCount, exercise]);
-
-  // Save workout session when detection is paused
+  // Save workout when detection is paused
   useEffect(() => {
     if (!isDetecting && (sessionReps > 0 || sessionCount > 0)) {
       const avgAccuracy = sessionCount > 0 ? sessionAccuracySum / sessionCount : 0;
@@ -500,7 +454,6 @@ export default function CameraView({ exercise, token }) {
     }
   }, [isDetecting, sessionReps, sessionAccuracySum, sessionCount, exercise]);
 
-  // --- MANUAL SAVE WORKOUT BUTTON FUNCTION ---
   const saveWorkout = async () => {
     if (repCount === 0) {
       alert('No reps to save. Perform some reps first.');
@@ -514,7 +467,6 @@ export default function CameraView({ exercise, token }) {
         avg_accuracy: avgAccuracy
       });
       alert(`Workout saved: ${repCount} reps, ${avgAccuracy.toFixed(1)}% accuracy`);
-      // Reset session and rep counters
       setRepCount(0);
       setSessionReps(0);
       setSessionAccuracySum(0);
@@ -525,22 +477,21 @@ export default function CameraView({ exercise, token }) {
       alert('Error saving workout. Check console.');
     }
   };
-  const resetReps = () => {
-  setRepCount(0);
-  setSessionReps(0);
-  setSessionAccuracySum(0);
-  setSessionCount(0);
-  setLastState(null);
-  alert('Reps reset. Start your next set!');
-};
 
-  // Determine master position and name
+  const resetReps = () => {
+    setRepCount(0);
+    setSessionReps(0);
+    setSessionAccuracySum(0);
+    setSessionCount(0);
+    setLastState(null);
+    alert('Reps reset. Start your next set!');
+  };
+
   const masterPosition = (exercise === 'squat' || exercise === 'lunge') ? 'left' : 'right';
   const masterName = exercise === 'squat' ? 'Squat Master' : exercise === 'lunge' ? 'Lunge Master' : exercise === 'pushup' ? 'Push‑up Master' : 'Curl Master';
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
-      {/* Master Coach – positioned left for squat/lunge, right for pushup/curl */}
       <div style={{
         position: 'absolute',
         top: 20,
@@ -558,7 +509,6 @@ export default function CameraView({ exercise, token }) {
         </div>
       </div>
 
-      {/* User Camera + Skeleton Overlay */}
       <div ref={containerRef} style={{ position: 'relative', width: '100%', paddingBottom: '75%' }}>
         {cameraMode === 'laptop' ? (
           <Webcam
@@ -580,7 +530,6 @@ export default function CameraView({ exercise, token }) {
         <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
       </div>
 
-      {/* Camera Source Controls */}
       <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '10px' }}>
         <button onClick={() => setCameraMode('laptop')} style={{ background: cameraMode === 'laptop' ? '#00aaee' : '#333', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
           💻 Laptop Camera
@@ -597,18 +546,17 @@ export default function CameraView({ exercise, token }) {
         </div>
       )}
 
-      {/* Action Buttons & Feedback */}
-     <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-  <button onClick={() => setIsDetecting(!isDetecting)}>{isDetecting ? '⏸ Pause' : '▶ Start'}</button>
-  <button onClick={saveWorkout} style={{ background: '#00aaee', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-    💾 Save Workout
-  </button>
-  <button onClick={resetReps} style={{ background: '#ffaa00', color: '#000', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-    🔄 Reset Reps
-  </button>
-  <div>Accuracy: <strong>{displayAccuracy}%</strong></div>
-  <div>Reps: <strong>{repCount}</strong></div>
-</div>
+      <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button onClick={() => setIsDetecting(!isDetecting)}>{isDetecting ? '⏸ Pause' : '▶ Start'}</button>
+        <button onClick={saveWorkout} style={{ background: '#00aaee', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          💾 Save Workout
+        </button>
+        <button onClick={resetReps} style={{ background: '#ffaa00', color: '#000', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          🔄 Reset Reps
+        </button>
+        <div>Accuracy: <strong>{displayAccuracy}%</strong></div>
+        <div>Reps: <strong>{repCount}</strong></div>
+      </div>
 
       <p style={{ fontSize: '1.2rem', fontWeight: 'bold', textAlign: 'center', marginTop: '15px', color: 'white', background: '#222', padding: '10px', borderRadius: '10px' }}>
         {feedback}
