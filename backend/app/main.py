@@ -20,7 +20,9 @@ from .auth import create_access_token, get_current_user
 from .chat_groq import get_chat_response
 from pathlib import Path
 import time
-
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Optional Redis
 try:
@@ -36,6 +38,13 @@ except:
 
 
 app = FastAPI()
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("du3q0gsof"),
+    api_key=os.getenv("543965274491447"),
+    api_secret=os.getenv("**********"),
+    secure=True
+)
 
 # CORS middleware – must be added BEFORE any other middleware or routes
 app.add_middleware(
@@ -428,28 +437,30 @@ def generate_diet_plan(req: DietRequest, db: Session = Depends(get_db), current_
     return response_data
 
 # ---------- Progress ----------
-UPLOAD_DIR = "user_photos"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/progress/photo")
 async def upload_progress_photo(photo: UploadFile = File(...), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     try:
-        file_ext = photo.filename.split('.')[-1]
-        safe_filename = f"{current_user['user_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+        contents = await photo.read()
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            contents,
+            folder=f"user_{current_user['user_id']}/progress",
+            public_id=f"photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            overwrite=True
+        )
+        photo_url = upload_result['secure_url']
         
-        # Create log entry (body_fat is optional, many models don't have it)
+        # Save to database
         new_log = ProgressLog(
             user_id=current_user["user_id"],
-            weight_kg=None,  # weight not required for photo upload
-            photo_url=file_path,
+            weight_kg=None,
+            photo_url=photo_url,
             notes="Progress photo uploaded"
         )
         db.add(new_log)
         db.commit()
-        return {"message": "Photo uploaded successfully", "file_path": file_path}
+        return {"message": "Photo uploaded successfully", "file_path": photo_url}
     except Exception as e:
         print(f"Upload error: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
@@ -463,24 +474,28 @@ async def upload_before_after_photo(
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        file_ext = photo.filename.split('.')[-1]
-        safe_filename = f"{current_user['user_id']}_{photo_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+        contents = await photo.read()
+        upload_result = cloudinary.uploader.upload(
+            contents,
+            folder=f"user_{current_user['user_id']}/before_after",
+            public_id=f"{photo_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            overwrite=True
+        )
+        photo_url = upload_result['secure_url']
         
         new_log = ProgressLog(
             user_id=current_user["user_id"],
             weight_kg=None,
-            photo_url=file_path,
+            photo_url=photo_url,
             notes=f"{photo_type} photo: {notes}" if notes else f"{photo_type} photo"
         )
         db.add(new_log)
         db.commit()
-        return {"message": f"{photo_type.capitalize()} photo uploaded", "file_path": file_path}
+        return {"message": f"{photo_type.capitalize()} photo uploaded", "file_path": photo_url}
     except Exception as e:
         print(f"Upload error: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
+
 
 @app.get("/api/progress/latest-photo")
 def get_latest_photo(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
@@ -517,11 +532,10 @@ def delete_progress_photo(photo_id: int, db: Session = Depends(get_db), current_
     photo_log = db.query(ProgressLog).filter(ProgressLog.id == photo_id, ProgressLog.user_id == current_user["user_id"]).first()
     if not photo_log:
         raise HTTPException(404, "Photo not found")
-    if photo_log.photo_url and os.path.exists(photo_log.photo_url):
-        os.remove(photo_log.photo_url)
+    # Do not try to delete local file – it's in Cloudinary
     db.delete(photo_log)
     db.commit()
-    return {"message": "Photo deleted"}
+    return {"message": "Photo record deleted"}
 
 @app.delete("/api/progress/before-after/{photo_type}")
 def delete_before_after_photo(photo_type: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
@@ -532,11 +546,11 @@ def delete_before_after_photo(photo_type: str, db: Session = Depends(get_db), cu
     ).order_by(ProgressLog.logged_at.desc()).first()
     if not photo_log:
         raise HTTPException(404, f"No {photo_type} photo found")
-    if photo_log.photo_url and os.path.exists(photo_log.photo_url):
-        os.remove(photo_log.photo_url)
+    # No local file to delete – it's stored in Cloudinary.
+    # If you want to also delete from Cloudinary, you would need to extract the public_id.
     db.delete(photo_log)
     db.commit()
-    return {"message": f"{photo_type} photo deleted"}
+    return {"message": f"{photo_type} photo record deleted"}
 
 # ---------- Workout Sessions ----------
 @app.post("/api/workout/save")
