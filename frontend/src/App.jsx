@@ -1,92 +1,71 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Workout from './pages/Workout';
+import Diet from './pages/Diet';
+import Chatbot from './pages/Chatbot';
+import Progress from './pages/Progress';
+import ProfileSetup from './pages/ProfileSetup';
+import Gyms from './pages/Gyms';
+import WorkoutPlan from './pages/WorkoutPlan';
+import TrainerBooking from './pages/TrainerBooking';
 import api from './api';
-import { FiUserPlus, FiUser, FiMail, FiLock } from 'react-icons/fi';
 
-export default function Register() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await api.post('/api/auth/register', { name, email, password });
-      // Remove any existing token (so you are not auto‑logged in)
-      localStorage.removeItem('token');
-      // Navigate to login page
-      navigate('/login');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Email may already exist.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
     }
-  };
+    api.get('/api/user/me')
+      .then(() => setIsAuthenticated(true))
+      .catch(() => {
+        localStorage.removeItem('token');
+        setIsAuthenticated(false);
+      });
+  }, []);
+
+  if (isAuthenticated === null) {
+    return <div className="flex justify-center items-center h-screen bg-black text-green-500">Loading...</div>;
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-md p-8 border border-gray-100">
-        <div className="text-center mb-8">
-          <FiUserPlus size={48} className="text-green-600 mx-auto" />
-          <h1 className="text-2xl font-bold text-gray-800 mt-3">Create Account</h1>
-          <p className="text-gray-500">Join AI Fitness today</p>
+    <BrowserRouter>
+      {!isAuthenticated ? (
+        <div className="bg-black min-h-screen">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-              <FiUser /> Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="John Doe"
-              required
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-              <FiMail /> Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-              <FiLock /> Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="input-field"
-            />
-          </div>
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Creating...' : 'Register'}
-          </button>
-        </form>
-
-        <p className="text-center text-gray-500 mt-6">
-          Already have an account? <Link to="/login" className="text-green-600 hover:underline">Login</Link>
-        </p>
-      </div>
-    </div>
+      ) : (
+        <>
+          <Navbar />
+          <main className="container mx-auto px-4 py-6">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/workout" element={<Workout />} />
+              <Route path="/diet" element={<Diet />} />
+              <Route path="/chat" element={<Chatbot />} />
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/profile-setup" element={<ProfileSetup />} />
+              <Route path="/gyms" element={<Gyms />} />
+              <Route path="/workout-plan" element={<WorkoutPlan />} />
+              <Route path="/trainers" element={<TrainerBooking />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </main>
+        </>
+      )}
+    </BrowserRouter>
   );
 }
+
+export default App;
