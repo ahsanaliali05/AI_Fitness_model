@@ -40,9 +40,9 @@ except:
 app = FastAPI()
 # Configure Cloudinary
 cloudinary.config(
-    cloud_name=os.getenv("du3q0gsof"),
-    api_key=os.getenv("543965274491447"),
-    api_secret=os.getenv("**********"),
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
 
