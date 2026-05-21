@@ -56,10 +56,13 @@ function getCoverTransform(element, container) {
   return { scale, offsetX, offsetY };
 }
 
+// Smoothing factor (0 = no smoothing, 1 = instant)
+const SMOOTHING = 0.6;
+
 export default function CameraView({ exercise, token }) {
   const [cameraMode, setCameraMode] = useState('laptop');
   const [mobileIP, setMobileIP] = useState('http://192.168.1.2:8080/video');
-  const [facingMode, setFacingMode] = useState('user'); // 'user' for front, 'environment' for back
+  const [facingMode, setFacingMode] = useState('user');
   const mobileImgRef = useRef(null);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
@@ -67,18 +70,18 @@ export default function CameraView({ exercise, token }) {
   const masterCanvasRef = useRef(null);
   const [feedback, setFeedback] = useState('');
   const [similarity, setSimilarity] = useState(null);
-  // Session tracking for saving workout
   const [sessionReps, setSessionReps] = useState(0);
   const [sessionAccuracySum, setSessionAccuracySum] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [isDetecting, setIsDetecting] = useState(true);
-  const [keypoints, setKeypoints] = useState([]);
+  const [rawKeypoints, setRawKeypoints] = useState([]);
+  const [smoothedKeypoints, setSmoothedKeypoints] = useState([]);
   const [squatFrame, setSquatFrame] = useState(0);
   const [pushupFrame, setPushupFrame] = useState(0);
   const [lungeFrame, setLungeFrame] = useState(0);
   const [curlFrame, setCurlFrame] = useState(0);
   const [repCount, setRepCount] = useState(0);
-  const [lastState, setLastState] = useState(null); // 'down' or 'up'
+  const [lastState, setLastState] = useState(null);
   const [displayAccuracy, setDisplayAccuracy] = useState(0);
 
   // Animate masters
@@ -96,7 +99,28 @@ export default function CameraView({ exercise, token }) {
     return () => clearInterval(interval);
   }, [exercise]);
 
-  // Draw Squat Master (cyan stick figure)
+  // Smooth keypoints over time to reduce jitter
+  useEffect(() => {
+    if (rawKeypoints.length === 0) {
+      setSmoothedKeypoints([]);
+      return;
+    }
+    if (smoothedKeypoints.length === 0 || smoothedKeypoints.length !== rawKeypoints.length) {
+      setSmoothedKeypoints(rawKeypoints);
+      return;
+    }
+    const newSmoothed = rawKeypoints.map((kp, idx) => {
+      const old = smoothedKeypoints[idx];
+      if (!old) return kp;
+      return [
+        old[0] * SMOOTHING + kp[0] * (1 - SMOOTHING),
+        old[1] * SMOOTHING + kp[1] * (1 - SMOOTHING),
+      ];
+    });
+    setSmoothedKeypoints(newSmoothed);
+  }, [rawKeypoints, smoothedKeypoints]);
+
+  // Draw Squat Master (cyan stick figure) – unchanged logic
   const drawSquatMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'squat') return;
@@ -143,7 +167,6 @@ export default function CameraView({ exercise, token }) {
     });
   }, [squatFrame, exercise]);
 
-  // Draw Push‑up Master (cyan stick figure moving up/down)
   const drawPushupMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'pushup') return;
@@ -159,16 +182,13 @@ export default function CameraView({ exercise, token }) {
     const shoulderX = 100;
     const elbowX = 70;
     const wristX = 50;
-    // head
     ctx.beginPath();
     ctx.arc(shoulderX, chestY - 20, 10, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(shoulderX, chestY);
     ctx.lineTo(shoulderX, hipY);
     ctx.stroke();
-    // arms (bent)
     ctx.beginPath();
     ctx.moveTo(shoulderX, chestY + 5);
     ctx.lineTo(elbowX, chestY + 20);
@@ -179,7 +199,6 @@ export default function CameraView({ exercise, token }) {
     ctx.lineTo(130, chestY + 20);
     ctx.lineTo(150, chestY + 35);
     ctx.stroke();
-    // legs (straight down)
     ctx.beginPath();
     ctx.moveTo(shoulderX, hipY);
     ctx.lineTo(85, hipY + 40);
@@ -192,7 +211,6 @@ export default function CameraView({ exercise, token }) {
     ctx.stroke();
   }, [pushupFrame, exercise]);
 
-  // Draw Lunge Master (simple lunge animation)
   const drawLungeMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'lunge') return;
@@ -204,23 +222,19 @@ export default function CameraView({ exercise, token }) {
     ctx.fillStyle = '#00ffff';
     const progress = Math.sin((lungeFrame / 100) * Math.PI * 2);
     const kneeY = 180 + progress * 15;
-    // head
     ctx.beginPath();
     ctx.arc(100, 60, 12, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(100, 140);
     ctx.stroke();
-    // arms
     ctx.beginPath();
     ctx.moveTo(100, 80);
     ctx.lineTo(70, 100);
     ctx.moveTo(100, 80);
     ctx.lineTo(130, 100);
     ctx.stroke();
-    // legs – forward leg bent, back leg straight
     ctx.beginPath();
     ctx.moveTo(100, 140);
     ctx.lineTo(80, kneeY);
@@ -233,7 +247,6 @@ export default function CameraView({ exercise, token }) {
     ctx.stroke();
   }, [lungeFrame, exercise]);
 
-  // Draw Bicep Curl Master (arm curling animation)
   const drawCurlMaster = useCallback(() => {
     const canvas = masterCanvasRef.current;
     if (!canvas || exercise !== 'curl') return;
@@ -245,28 +258,23 @@ export default function CameraView({ exercise, token }) {
     ctx.fillStyle = '#00ffff';
     const progress = Math.sin((curlFrame / 100) * Math.PI * 2);
     const elbowY = 120 + progress * 15;
-    // head
     ctx.beginPath();
     ctx.arc(100, 50, 12, 0, 2 * Math.PI);
     ctx.fill();
-    // torso
     ctx.beginPath();
     ctx.moveTo(100, 60);
     ctx.lineTo(100, 110);
     ctx.stroke();
-    // left arm (curling)
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(80, 90);
     ctx.lineTo(60, elbowY);
     ctx.stroke();
-    // right arm (curling)
     ctx.beginPath();
     ctx.moveTo(100, 70);
     ctx.lineTo(120, 90);
     ctx.lineTo(140, elbowY);
     ctx.stroke();
-    // legs
     ctx.beginPath();
     ctx.moveTo(100, 110);
     ctx.lineTo(85, 180);
@@ -286,7 +294,7 @@ export default function CameraView({ exercise, token }) {
     else if (exercise === 'curl') drawCurlMaster();
   }, [drawSquatMaster, drawPushupMaster, drawLungeMaster, drawCurlMaster, exercise]);
 
-  // Draw user skeleton on canvas (scaled to container)
+  // Draw user skeleton using smoothed keypoints
   const drawSkeleton = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -296,7 +304,10 @@ export default function CameraView({ exercise, token }) {
     } else {
       mediaElement = mobileImgRef.current;
     }
-    if (!canvas || !container || !mediaElement || keypoints.length === 0) return;
+    if (!canvas || !container || !mediaElement || smoothedKeypoints.length === 0) return;
+
+    // Wait for video to have valid dimensions
+    if (mediaElement.tagName === 'VIDEO' && (mediaElement.videoWidth === 0 || mediaElement.videoHeight === 0)) return;
 
     const transform = getCoverTransform(mediaElement, container);
     if (!transform) return;
@@ -309,9 +320,10 @@ export default function CameraView({ exercise, token }) {
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 3;
     ctx.fillStyle = '#ff0000';
+
     CONNECTIONS.forEach(([i1, i2]) => {
-      const p1 = keypoints[i1];
-      const p2 = keypoints[i2];
+      const p1 = smoothedKeypoints[i1];
+      const p2 = smoothedKeypoints[i2];
       if (p1 && p2 && p1[0] && p1[1] && p2[0] && p2[1]) {
         ctx.beginPath();
         ctx.moveTo(p1[0] * scale + offsetX, p1[1] * scale + offsetY);
@@ -319,14 +331,14 @@ export default function CameraView({ exercise, token }) {
         ctx.stroke();
       }
     });
-    keypoints.forEach(kp => {
+    smoothedKeypoints.forEach(kp => {
       if (kp && kp[0] && kp[1]) {
         ctx.beginPath();
         ctx.arc(kp[0] * scale + offsetX, kp[1] * scale + offsetY, 5, 0, 2 * Math.PI);
         ctx.fill();
       }
     });
-  }, [keypoints, cameraMode]);
+  }, [smoothedKeypoints, cameraMode]);
 
   // Animation loop for skeleton
   useEffect(() => {
@@ -396,8 +408,8 @@ export default function CameraView({ exercise, token }) {
           }
           if (w && h) {
             const absKeypoints = data.user_keypoints.map(([x, y]) => [x * w, y * h]);
-            setKeypoints(absKeypoints);
-            // Angle calculation and rep counting (unchanged)
+            setRawKeypoints(absKeypoints);
+            // --- Angle calculation and rep counting (unchanged) ---
             let currentAngle = null;
             let accuracy = null;
             if (exercise === 'squat') {
@@ -495,7 +507,6 @@ export default function CameraView({ exercise, token }) {
     }
   }, [isDetecting, sessionReps, sessionAccuracySum, sessionCount, exercise]);
 
-  // Manual save workout
   const saveWorkout = async () => {
     if (repCount === 0) {
       alert('No reps to save. Perform some reps first.');
@@ -529,12 +540,10 @@ export default function CameraView({ exercise, token }) {
     alert('Reps reset. Start your next set!');
   };
 
-  // Camera toggle function (only for laptop/webcam mode)
   const toggleCameraFacing = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
-  // Determine master position and name
   const masterPosition = (exercise === 'squat' || exercise === 'lunge') ? 'left' : 'right';
   const masterName = exercise === 'squat' ? 'Squat Master' : exercise === 'lunge' ? 'Lunge Master' : exercise === 'pushup' ? 'Push‑up Master' : 'Curl Master';
 
