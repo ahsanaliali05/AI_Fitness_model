@@ -24,7 +24,7 @@ Keep responses friendly and motivational. Limit to 3-4 sentences unless asked fo
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
             ],
-            model="llama3-70b-8192",  # fast, smart, free tier
+            model="llama-3.3-70b-versatile",  # updated from decommissioned model
             temperature=0.7,
             max_tokens=300,
         )
