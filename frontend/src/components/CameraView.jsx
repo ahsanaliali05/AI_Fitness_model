@@ -59,6 +59,7 @@ function getCoverTransform(element, container) {
 export default function CameraView({ exercise, token }) {
   const [cameraMode, setCameraMode] = useState('laptop');
   const [mobileIP, setMobileIP] = useState('http://192.168.1.2:8080/video');
+  const [facingMode, setFacingMode] = useState('user'); // 'user' for front, 'environment' for back
   const mobileImgRef = useRef(null);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
@@ -371,7 +372,6 @@ export default function CameraView({ exercise, token }) {
     formData.append('exercise', exercise);
 
     try {
-      // ✅ CHANGED: use api.post instead of fetch to localhost
       const res = await api.post('/api/pose/compare', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -397,7 +397,7 @@ export default function CameraView({ exercise, token }) {
           if (w && h) {
             const absKeypoints = data.user_keypoints.map(([x, y]) => [x * w, y * h]);
             setKeypoints(absKeypoints);
-            // --- Angle calculation and rep counting ---
+            // Angle calculation and rep counting (unchanged)
             let currentAngle = null;
             let accuracy = null;
             if (exercise === 'squat') {
@@ -406,10 +406,9 @@ export default function CameraView({ exercise, token }) {
               const ankle = absKeypoints[27];
               if (hip && knee && ankle) {
                 currentAngle = computeAngle(hip, knee, ankle);
-                accuracy = data.similarity; // use backend similarity for squat
+                accuracy = data.similarity;
               }
             } else if (exercise === 'lunge') {
-              // Use left leg (hip23, knee25, ankle27) – user should face sideways
               const hip = absKeypoints[23];
               const knee = absKeypoints[25];
               const ankle = absKeypoints[27];
@@ -426,7 +425,6 @@ export default function CameraView({ exercise, token }) {
                 accuracy = Math.max(0, 100 - (Math.abs(currentAngle - 90) / 90) * 100);
               }
             } else if (exercise === 'curl') {
-              // Use right arm (shoulder12, elbow14, wrist16)
               const shoulder = absKeypoints[12];
               const elbow = absKeypoints[14];
               const wrist = absKeypoints[16];
@@ -437,17 +435,15 @@ export default function CameraView({ exercise, token }) {
             }
             if (currentAngle !== null) {
               setDisplayAccuracy(accuracy !== null ? Math.round(accuracy) : 0);
-              // Rep counting thresholds
               let downThresh, upThresh;
               if (exercise === 'squat') { downThresh = 90; upThresh = 110; }
               else if (exercise === 'pushup') { downThresh = 90; upThresh = 140; }
-              else { downThresh = 90; upThresh = 110; } // lunge and curl
+              else { downThresh = 90; upThresh = 110; }
               if (currentAngle < downThresh && lastState !== 'down') {
                 setLastState('down');
               } else if (currentAngle > upThresh && lastState === 'down') {
                 setLastState('up');
                 setRepCount(prev => prev + 1);
-                // Session tracking
                 setSessionReps(prev => prev + 1);
                 setSessionAccuracySum(prev => prev + (accuracy !== null ? accuracy : 0));
                 setSessionCount(prev => prev + 1);
@@ -499,7 +495,7 @@ export default function CameraView({ exercise, token }) {
     }
   }, [isDetecting, sessionReps, sessionAccuracySum, sessionCount, exercise]);
 
-  // --- MANUAL SAVE WORKOUT BUTTON FUNCTION ---
+  // Manual save workout
   const saveWorkout = async () => {
     if (repCount === 0) {
       alert('No reps to save. Perform some reps first.');
@@ -513,7 +509,6 @@ export default function CameraView({ exercise, token }) {
         avg_accuracy: avgAccuracy
       });
       alert(`Workout saved: ${repCount} reps, ${avgAccuracy.toFixed(1)}% accuracy`);
-      // Reset session and rep counters
       setRepCount(0);
       setSessionReps(0);
       setSessionAccuracySum(0);
@@ -524,14 +519,20 @@ export default function CameraView({ exercise, token }) {
       alert('Error saving workout. Check console.');
     }
   };
+
   const resetReps = () => {
-  setRepCount(0);
-  setSessionReps(0);
-  setSessionAccuracySum(0);
-  setSessionCount(0);
-  setLastState(null);
-  alert('Reps reset. Start your next set!');
-};
+    setRepCount(0);
+    setSessionReps(0);
+    setSessionAccuracySum(0);
+    setSessionCount(0);
+    setLastState(null);
+    alert('Reps reset. Start your next set!');
+  };
+
+  // Camera toggle function (only for laptop/webcam mode)
+  const toggleCameraFacing = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
 
   // Determine master position and name
   const masterPosition = (exercise === 'squat' || exercise === 'lunge') ? 'left' : 'right';
@@ -539,7 +540,7 @@ export default function CameraView({ exercise, token }) {
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
-      {/* Master Coach – positioned left for squat/lunge, right for pushup/curl */}
+      {/* Master Coach */}
       <div style={{
         position: 'absolute',
         top: 20,
@@ -564,7 +565,7 @@ export default function CameraView({ exercise, token }) {
             ref={webcamRef}
             screenshotFormat="image/jpeg"
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            videoConstraints={{ facingMode: 'user' }}
+            videoConstraints={{ facingMode: facingMode }}
           />
         ) : (
           <img
@@ -580,13 +581,18 @@ export default function CameraView({ exercise, token }) {
       </div>
 
       {/* Camera Source Controls */}
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <button onClick={() => setCameraMode('laptop')} style={{ background: cameraMode === 'laptop' ? '#00aaee' : '#333', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
           💻 Laptop Camera
         </button>
         <button onClick={() => setCameraMode('mobile')} style={{ background: cameraMode === 'mobile' ? '#00aaee' : '#333', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
           📱 Mobile IP Webcam
         </button>
+        {cameraMode === 'laptop' && (
+          <button onClick={toggleCameraFacing} style={{ background: '#555', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+            🔄 Switch Camera {facingMode === 'user' ? '(Front)' : '(Back)'}
+          </button>
+        )}
       </div>
 
       {cameraMode === 'mobile' && (
@@ -597,17 +603,17 @@ export default function CameraView({ exercise, token }) {
       )}
 
       {/* Action Buttons & Feedback */}
-     <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-  <button onClick={() => setIsDetecting(!isDetecting)}>{isDetecting ? '⏸ Pause' : '▶ Start'}</button>
-  <button onClick={saveWorkout} style={{ background: '#00aaee', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-    💾 Save Workout
-  </button>
-  <button onClick={resetReps} style={{ background: '#ffaa00', color: '#000', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-    🔄 Reset Reps
-  </button>
-  <div>Accuracy: <strong>{displayAccuracy}%</strong></div>
-  <div>Reps: <strong>{repCount}</strong></div>
-</div>
+      <div style={{ marginTop: '1rem', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button onClick={() => setIsDetecting(!isDetecting)}>{isDetecting ? '⏸ Pause' : '▶ Start'}</button>
+        <button onClick={saveWorkout} style={{ background: '#00aaee', color: 'white', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          💾 Save Workout
+        </button>
+        <button onClick={resetReps} style={{ background: '#ffaa00', color: '#000', padding: '10px 15px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          🔄 Reset Reps
+        </button>
+        <div>Accuracy: <strong>{displayAccuracy}%</strong></div>
+        <div>Reps: <strong>{repCount}</strong></div>
+      </div>
 
       <p style={{ fontSize: '1.2rem', fontWeight: 'bold', textAlign: 'center', marginTop: '15px', color: 'white', background: '#222', padding: '10px', borderRadius: '10px' }}>
         {feedback}
