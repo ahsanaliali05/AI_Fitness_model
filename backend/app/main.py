@@ -50,7 +50,7 @@ cloudinary.config(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://ai-fitness-model-9mlw.vercel.app/",   # new frontend URL
+        "https://ai-fitness-model-9mlw.vercel.app",   # new frontend URL
         "http://localhost:5173",                     # local development
     ],
     allow_credentials=True,
