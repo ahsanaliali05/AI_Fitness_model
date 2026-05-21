@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { FiUserPlus, FiUser, FiMail, FiLock } from 'react-icons/fi';
 
@@ -9,13 +9,18 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       await api.post('/api/auth/register', { name, email, password });
-      window.location.href = '/login';
+      // Clear any existing token (just in case)
+      localStorage.removeItem('token');
+      // Navigate to login page
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. Email may already exist.');
     } finally {
