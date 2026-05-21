@@ -772,7 +772,7 @@ def get_body_measurements(image_bytes):
     }
 
 @app.get("/api/progress/compare")
-def compare_before_after(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+async def compare_before_after(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     before_log = db.query(ProgressLog).filter(
         ProgressLog.user_id == current_user["user_id"],
         ProgressLog.notes.contains("before")
@@ -783,63 +783,77 @@ def compare_before_after(db: Session = Depends(get_db), current_user: dict = Dep
     ).order_by(ProgressLog.logged_at.desc()).first()
     if not before_log or not after_log:
         return {"has_before": before_log is not None, "has_after": after_log is not None, "comparison": None}
+
     try:
-        with open(before_log.photo_url, "rb") as f:
-            before_bytes = f.read()
-        with open(after_log.photo_url, "rb") as f:
-            after_bytes = f.read()
-        before_meas = get_body_measurements(before_bytes)
-        after_meas = get_body_measurements(after_bytes)
-        if not before_meas or not after_meas:
-            return {"has_before": True, "has_after": True, "comparison": {"message": "Could not detect body in one photo", "estimated_change": "N/A"}, "before_url": before_log.photo_url, "after_url": after_log.photo_url}
-        whr_change = after_meas["waist_to_hip_ratio"] - before_meas["waist_to_hip_ratio"]
-        shoulder_change = after_meas["shoulder_to_waist_ratio"] - before_meas["shoulder_to_waist_ratio"]
-        feedback_parts = []
-        if whr_change < -0.05:
-            feedback_parts.append("Waist appears narrower relative to hips 👍")
-        elif whr_change > 0.05:
-            feedback_parts.append("Waist-to-hip ratio increased – focus on core and fat loss")
-        else:
-            feedback_parts.append("Waist-to-hip ratio stable")
-        if shoulder_change > 0.05:
-            feedback_parts.append("Shoulders look broader – great upper body development! 💪")
-        elif shoulder_change < -0.05:
-            feedback_parts.append("Shoulder width decreased – consider adding pulling exercises")
-        else:
-            feedback_parts.append("Shoulder width maintained")
-        height_estimate = before_meas["torso_height"] * 2.5
-        waist_estimate = before_meas["waist_to_hip_ratio"] * before_meas["hip_width"]
-        before_bf = max(5, min(40, (waist_estimate / height_estimate) * 100))
-        after_waist_estimate = after_meas["waist_to_hip_ratio"] * after_meas["hip_width"]
-        after_bf = max(5, min(40, (after_waist_estimate / height_estimate) * 100))
-        bf_change = after_bf - before_bf
-        if bf_change < -1:
-            feedback_parts.append(f"Estimated body fat reduced by {abs(bf_change):.1f}% 🎉")
-        elif bf_change > 1:
-            feedback_parts.append(f"Estimated body fat increased by {bf_change:.1f}% – review nutrition")
-        else:
-            feedback_parts.append("Body fat percentage stable")
-        message = " ".join(feedback_parts)
-        estimated_change = f"{bf_change:+.1f}% body fat (approx)"
-        return {
-            "has_before": True,
-            "has_after": True,
-            "before_url": before_log.photo_url,
-            "after_url": after_log.photo_url,
-            "comparison": {
-                "message": message,
-                "estimated_change": estimated_change,
-                "metrics": {
-                    "waist_to_hip_before": round(before_meas["waist_to_hip_ratio"], 3),
-                    "waist_to_hip_after": round(after_meas["waist_to_hip_ratio"], 3),
-                    "shoulder_to_waist_before": round(before_meas["shoulder_to_waist_ratio"], 3),
-                    "shoulder_to_waist_after": round(after_meas["shoulder_to_waist_ratio"], 3)
-                }
+        async with httpx.AsyncClient() as client:
+            before_resp = await client.get(before_log.photo_url)
+            after_resp = await client.get(after_log.photo_url)
+            before_bytes = before_resp.content
+            after_bytes = after_resp.content
+    except Exception as e:
+        print(f"Fetch error: {e}")
+        return {"has_before": True, "has_after": True, "comparison": {"message": "Could not fetch images", "estimated_change": "N/A"}, "before_url": before_log.photo_url, "after_url": after_log.photo_url}
+
+    before_meas = get_body_measurements(before_bytes)
+    after_meas = get_body_measurements(after_bytes)
+
+    if not before_meas or not after_meas:
+        return {"has_before": True, "has_after": True, "comparison": {"message": "Could not detect body in one photo", "estimated_change": "N/A"}, "before_url": before_log.photo_url, "after_url": after_log.photo_url}
+
+    # --- rest of the comparison logic (unchanged) ---
+    whr_change = after_meas["waist_to_hip_ratio"] - before_meas["waist_to_hip_ratio"]
+    shoulder_change = after_meas["shoulder_to_waist_ratio"] - before_meas["shoulder_to_waist_ratio"]
+
+    feedback_parts = []
+    if whr_change < -0.05:
+        feedback_parts.append("Waist appears narrower relative to hips 👍")
+    elif whr_change > 0.05:
+        feedback_parts.append("Waist-to-hip ratio increased – focus on core and fat loss")
+    else:
+        feedback_parts.append("Waist-to-hip ratio stable")
+
+    if shoulder_change > 0.05:
+        feedback_parts.append("Shoulders look broader – great upper body development! 💪")
+    elif shoulder_change < -0.05:
+        feedback_parts.append("Shoulder width decreased – consider adding pulling exercises")
+    else:
+        feedback_parts.append("Shoulder width maintained")
+
+    height_estimate = before_meas["torso_height"] * 2.5
+    waist_estimate = before_meas["waist_to_hip_ratio"] * before_meas["hip_width"]
+    before_bf = max(5, min(40, (waist_estimate / height_estimate) * 100))
+    after_waist_estimate = after_meas["waist_to_hip_ratio"] * after_meas["hip_width"]
+    after_bf = max(5, min(40, (after_waist_estimate / height_estimate) * 100))
+    bf_change = after_bf - before_bf
+
+    if bf_change < -1:
+        feedback_parts.append(f"Estimated body fat reduced by {abs(bf_change):.1f}% 🎉")
+    elif bf_change > 1:
+        feedback_parts.append(f"Estimated body fat increased by {bf_change:.1f}% – review nutrition")
+    else:
+        feedback_parts.append("Body fat percentage stable")
+
+    message = " ".join(feedback_parts)
+    estimated_change = f"{bf_change:+.1f}% body fat (approx)"
+
+    return {
+        "has_before": True,
+        "has_after": True,
+        "before_url": before_log.photo_url,
+        "after_url": after_log.photo_url,
+        "comparison": {
+            "message": message,
+            "estimated_change": estimated_change,
+            "metrics": {
+                "waist_to_hip_before": round(before_meas["waist_to_hip_ratio"], 3),
+                "waist_to_hip_after": round(after_meas["waist_to_hip_ratio"], 3),
+                "shoulder_to_waist_before": round(before_meas["shoulder_to_waist_ratio"], 3),
+                "shoulder_to_waist_after": round(after_meas["shoulder_to_waist_ratio"], 3)
             }
         }
-    except Exception as e:
-        print(f"Comparison error: {e}")
-        return {"has_before": True, "has_after": True, "comparison": {"message": "Error comparing photos", "estimated_change": "N/A"}, "before_url": before_log.photo_url, "after_url": after_log.photo_url}
+    }
+
+
 
 from pydantic import BaseModel
 
