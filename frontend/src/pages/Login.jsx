@@ -16,22 +16,31 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    console.log('📤 Login attempt:', { email });
+
     try {
+      console.log('📡 Sending login request to /api/auth/login');
       const res = await api.post('/api/auth/login', { email, password });
       const token = res.data.access_token;
+      console.log('✅ Login successful, token received (first 20 chars):', token.substring(0, 20) + '...');
 
       // Store token depending on platform
       if (Capacitor.isNativePlatform()) {
-        // Capacitor native (APK)
+        console.log('📱 Native platform detected, saving token to Preferences');
         await Preferences.set({ key: 'token', value: token });
+        // Verify it was saved
+        const { value: savedToken } = await Preferences.get({ key: 'token' });
+        console.log('🔍 Verification - Token saved:', savedToken ? 'YES' : 'NO');
       } else {
-        // Web browser
+        console.log('🌐 Web platform, saving token to localStorage');
         localStorage.setItem('token', token);
+        console.log('🔍 Verification - Token saved:', localStorage.getItem('token') ? 'YES' : 'NO');
       }
 
-      // Redirect to dashboard
+      console.log('🚀 Redirecting to dashboard...');
       window.location.href = '/';
     } catch (err) {
+      console.error('❌ Login error:', err.response?.status, err.response?.data || err.message);
       setError(err.response?.data?.detail || 'Login failed. Check email/password.');
     } finally {
       setLoading(false);
