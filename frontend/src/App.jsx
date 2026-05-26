@@ -1,3 +1,4 @@
+// src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
@@ -13,22 +14,42 @@ import Gyms from './pages/Gyms';
 import WorkoutPlan from './pages/WorkoutPlan';
 import TrainerBooking from './pages/TrainerBooking';
 import api from './api';
+import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setIsAuthenticated(false);
-      return;
-    }
-    api.get('/api/user/me')
-      .then(() => setIsAuthenticated(true))
-      .catch(() => {
-        localStorage.removeItem('token');
+    const checkAuth = async () => {
+      let token = null;
+      if (Capacitor.isNativePlatform()) {
+        const { value } = await Preferences.get({ key: 'token' });
+        token = value;
+      } else {
+        token = localStorage.getItem('token');
+      }
+
+      if (!token) {
         setIsAuthenticated(false);
-      });
+        return;
+      }
+
+      try {
+        await api.get('/api/user/me');
+        setIsAuthenticated(true);
+      } catch {
+        // Token invalid – clear it
+        if (Capacitor.isNativePlatform()) {
+          await Preferences.remove({ key: 'token' });
+        } else {
+          localStorage.removeItem('token');
+        }
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   if (isAuthenticated === null) {
