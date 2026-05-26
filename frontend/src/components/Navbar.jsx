@@ -1,9 +1,12 @@
+// src/components/Navbar.jsx
 import { Link } from 'react-router-dom';
 import { 
   FiHome, FiActivity, FiDroplet, FiMessageSquare, 
   FiBarChart2, FiUser, FiMapPin, FiLogOut, 
   FiCalendar, FiUsers 
 } from 'react-icons/fi';
+import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: FiHome },
@@ -13,13 +16,17 @@ const navItems = [
   { to: '/progress', label: 'Progress', icon: FiBarChart2 },
   { to: '/profile-setup', label: 'Profile', icon: FiUser },
   { to: '/gyms', label: 'Gyms', icon: FiMapPin },
-  { to: '/workout-plan', label: 'Plans', icon: FiCalendar },   // new
-  { to: '/trainers', label: 'Trainers', icon: FiUsers },       // new
+  { to: '/workout-plan', label: 'Plans', icon: FiCalendar },
+  { to: '/trainers', label: 'Trainers', icon: FiUsers },
 ];
 
 export default function Navbar() {
-  const logout = () => {
-    localStorage.removeItem('token');
+  const logout = async () => {
+    if (Capacitor.isNativePlatform()) {
+      await Preferences.remove({ key: 'token' });
+    } else {
+      localStorage.removeItem('token');
+    }
     window.location.href = '/login';
   };
 
