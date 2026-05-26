@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 import random
@@ -24,7 +24,7 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
-# Optional Redis
+# ---------- Redis (optional) ----------
 try:
     import redis
     redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
@@ -35,10 +35,9 @@ except:
     redis_client = None
     print("Redis not available – caching disabled")
 
-
-
 app = FastAPI()
-# Configure Cloudinary
+
+# ---------- Cloudinary Configuration ----------
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -46,12 +45,12 @@ cloudinary.config(
     secure=True
 )
 
-# CORS middleware – must be added BEFORE any other middleware or routes
+# ---------- CORS ----------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://ai-fitness-model-9mlw.vercel.app",   # new frontend URL
-        "http://localhost:5173",                     # local development
+        "https://ai-fitness-model-9mlw.vercel.app",
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -60,7 +59,7 @@ app.add_middleware(
 
 pose_engine = MoveNetEngine()
 
-# ---------- Pydantic Models ----------
+# ---------- Pydantic Request Models ----------
 class RegisterRequest(BaseModel):
     name: str
     email: str
@@ -104,6 +103,51 @@ class BookingRequest(BaseModel):
     trainer_name: str
     booking_date: str
 
+class WhatsAppReminderRequest(BaseModel):
+    reminder_type: str
+    phone_number: str
+
+# ---------- Pydantic Response Schemas (for OpenAPI) ----------
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+    class Config:
+        from_attributes = True
+
+class UserProfileResponse(BaseModel):
+    id: int
+    user_id: int
+    age: int
+    gender: str
+    height_cm: float
+    weight_kg: float
+    bmi: float
+    fitness_goal: str
+    activity_level: str
+    dietary_restrictions: Optional[List[str]] = []
+    class Config:
+        from_attributes = True
+
+class ProgressLogResponse(BaseModel):
+    id: int
+    logged_at: datetime
+    weight_kg: Optional[float]
+    notes: Optional[str]
+    photo_url: Optional[str]
+    class Config:
+        from_attributes = True
+
+class WorkoutSessionResponse(BaseModel):
+    id: int
+    exercise: str
+    rep_count: int
+    avg_accuracy: Optional[float]
+    date: str
+    class Config:
+        from_attributes = True
+
 # ---------- Helper: Diet files ----------
 def ensure_diet_files():
     data_dir = os.path.join(os.path.dirname(__file__), "diet_data")
@@ -145,9 +189,6 @@ def load_workout_plans():
     print(f"Total workout plans loaded: {len(plans)}")
     return plans
 
-
-
-
 def load_trainers():
     trainers = []
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -174,7 +215,7 @@ ALL_TRAINERS = load_trainers()
 _last_trainer_time = 0
 _cached_trainers = []
 
-# ---------- Workout templates & other constants ----------
+# ---------- Workout templates (fallback) ----------
 WORKOUT_TEMPLATES = {
     "weight_loss": {
         "full_body": [
@@ -205,12 +246,27 @@ WORKOUT_TEMPLATES = {
     }
 }
 
-# ---------- Email config (set your own credentials) ----------
-# ---------- Email config ----------
+VIDEO_LIBRARY = {
+    "squat": "https://www.youtube.com/watch?v=aclHkVaku9U",
+    "pushup": "https://www.youtube.com/watch?v=IODxDxX7oi4",
+    "lunge": "https://www.youtube.com/watch?v=QOVaHwm-Q6U",
+    "curl": "https://www.youtube.com/watch?v=ykJmrZ5v0Oo",
+    "plank": "https://www.youtube.com/watch?v=pSHjTRCQxIw",
+    "deadlift": "https://www.youtube.com/watch?v=1ZXobu7JcNE",
+    "pullup": "https://www.youtube.com/watch?v=eGo4IYlbE5g",
+}
+
+SUPPLEMENTS = {
+    "weight_loss": ["Whey Protein Isolate (low carb)", "Green Tea Extract", "CLA", "Fiber Supplements (Psyllium Husk)"],
+    "muscle_gain": ["Whey Protein Concentrate", "Creatine Monohydrate", "BCAA", "Mass Gainer (if needed)"],
+    "maintenance": ["Plant Protein (Pea/Rice)", "Omega-3 Fish Oil", "Multivitamin", "Probiotics"]
+}
+
+# ---------- Email config (only one, using your credentials) ----------
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USER = "ahsan.netflix05@gmail.com"
-SMTP_PASS = "Aliahsan2005"
+SMTP_PASS = "Aliahsan2005"   # Replace with App Password if needed
 EMAIL_CONFIGURED = SMTP_USER != "your_email@gmail.com" and SMTP_PASS != "your_app_password"
 
 def send_email(to_email: str, subject: str, body: str):
@@ -231,45 +287,7 @@ def send_email(to_email: str, subject: str, body: str):
     except Exception as e:
         print(f"Email failed: {e}")
 
-
-VIDEO_LIBRARY = {
-    "squat": "https://www.youtube.com/watch?v=aclHkVaku9U",
-    "pushup": "https://www.youtube.com/watch?v=IODxDxX7oi4",
-    "lunge": "https://www.youtube.com/watch?v=QOVaHwm-Q6U",
-    "curl": "https://www.youtube.com/watch?v=ykJmrZ5v0Oo",
-    "plank": "https://www.youtube.com/watch?v=pSHjTRCQxIw",
-    "deadlift": "https://www.youtube.com/watch?v=1ZXobu7JcNE",
-    "pullup": "https://www.youtube.com/watch?v=eGo4IYlbE5g",
-}
-
-SUPPLEMENTS = {
-    "weight_loss": ["Whey Protein Isolate (low carb)", "Green Tea Extract", "CLA", "Fiber Supplements (Psyllium Husk)"],
-    "muscle_gain": ["Whey Protein Concentrate", "Creatine Monohydrate", "BCAA", "Mass Gainer (if needed)"],
-    "maintenance": ["Plant Protein (Pea/Rice)", "Omega-3 Fish Oil", "Multivitamin", "Probiotics"]
-}
-
-# Email config (replace with your credentials)
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USER = "your_email@gmail.com"
-SMTP_PASS = "your_app_password"
-
-def send_email(to_email: str, subject: str, body: str):
-    try:
-        msg = EmailMessage()
-        msg.set_content(body)
-        msg["Subject"] = subject
-        msg["From"] = SMTP_USER
-        msg["To"] = to_email
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        print(f"Email sent to {to_email}")
-    except Exception as e:
-        print(f"Email failed: {e}")
-
-# ---------- Auth Endpoints ----------
+# ---------- Auth Endpoints (with response models) ----------
 @app.post("/api/auth/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
@@ -288,12 +306,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {"access_token": token, "token_type": "bearer"}
 
-@app.get("/api/user/me")
+@app.get("/api/user/me", response_model=UserResponse)
 def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == current_user["user_id"]).first()
     if not user:
         raise HTTPException(404, "User not found")
-    return {"id": user.id, "name": user.name, "email": user.email}
+    return user
 
 # ---------- Pose ----------
 @app.post("/api/pose/compare")
@@ -307,7 +325,7 @@ async def compare_pose(file: UploadFile = File(...)):
     return {"similarity": round(similarity,1), "feedback": feedback, "user_keypoints": user_norm}
 
 # ---------- Profile ----------
-@app.get("/api/profile/")
+@app.get("/api/profile/", response_model=UserProfileResponse)
 def get_profile(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user["user_id"]).first()
     if not profile:
@@ -436,12 +454,13 @@ def generate_diet_plan(req: DietRequest, db: Session = Depends(get_db), current_
     return response_data
 
 # ---------- Progress ----------
+UPLOAD_DIR = "user_photos"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/progress/photo")
 async def upload_progress_photo(photo: UploadFile = File(...), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     try:
         contents = await photo.read()
-        # Upload to Cloudinary
         upload_result = cloudinary.uploader.upload(
             contents,
             folder=f"user_{current_user['user_id']}/progress",
@@ -449,8 +468,6 @@ async def upload_progress_photo(photo: UploadFile = File(...), db: Session = Dep
             overwrite=True
         )
         photo_url = upload_result['secure_url']
-        
-        # Save to database
         new_log = ProgressLog(
             user_id=current_user["user_id"],
             weight_kg=None,
@@ -481,7 +498,6 @@ async def upload_before_after_photo(
             overwrite=True
         )
         photo_url = upload_result['secure_url']
-        
         new_log = ProgressLog(
             user_id=current_user["user_id"],
             weight_kg=None,
@@ -495,7 +511,6 @@ async def upload_before_after_photo(
         print(f"Upload error: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
 
-
 @app.get("/api/progress/latest-photo")
 def get_latest_photo(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     latest = db.query(ProgressLog).filter(
@@ -506,10 +521,10 @@ def get_latest_photo(db: Session = Depends(get_db), current_user: dict = Depends
         return {"photo_url": latest.photo_url, "logged_at": latest.logged_at.isoformat(), "id": latest.id}
     return {"photo_url": None, "id": None}
 
-@app.get("/api/progress/")
+@app.get("/api/progress/", response_model=List[ProgressLogResponse])
 def get_all_progress(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     logs = db.query(ProgressLog).filter(ProgressLog.user_id == current_user["user_id"]).order_by(ProgressLog.logged_at.desc()).all()
-    return [{"id": log.id, "logged_at": log.logged_at, "weight_kg": log.weight_kg, "notes": log.notes, "photo_url": log.photo_url} for log in logs]
+    return logs
 
 @app.post("/api/progress/log")
 async def log_progress(weight_kg: float = Form(...), notes: str = Form(""), db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
@@ -531,7 +546,6 @@ def delete_progress_photo(photo_id: int, db: Session = Depends(get_db), current_
     photo_log = db.query(ProgressLog).filter(ProgressLog.id == photo_id, ProgressLog.user_id == current_user["user_id"]).first()
     if not photo_log:
         raise HTTPException(404, "Photo not found")
-    # Do not try to delete local file – it's in Cloudinary
     db.delete(photo_log)
     db.commit()
     return {"message": "Photo record deleted"}
@@ -545,8 +559,6 @@ def delete_before_after_photo(photo_type: str, db: Session = Depends(get_db), cu
     ).order_by(ProgressLog.logged_at.desc()).first()
     if not photo_log:
         raise HTTPException(404, f"No {photo_type} photo found")
-    # No local file to delete – it's stored in Cloudinary.
-    # If you want to also delete from Cloudinary, you would need to extract the public_id.
     db.delete(photo_log)
     db.commit()
     return {"message": f"{photo_type} photo record deleted"}
@@ -581,10 +593,18 @@ def get_yesterday_stats(db: Session = Depends(get_db), current_user: dict = Depe
     avg_acc = sum(s.avg_accuracy for s in sessions) / len(sessions) if sessions else 0
     return {"total_reps": total_reps, "avg_accuracy": round(avg_acc, 1)}
 
-@app.get("/api/workout/recent")
+@app.get("/api/workout/recent", response_model=List[WorkoutSessionResponse])
 def get_recent_sessions(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user), limit: int = 5):
     sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == current_user["user_id"]).order_by(WorkoutSession.created_at.desc()).limit(limit).all()
-    return [{"id": s.id, "exercise": s.exercise, "rep_count": s.rep_count, "avg_accuracy": s.avg_accuracy, "date": s.created_at.strftime("%Y-%m-%d %H:%M")} for s in sessions]
+    return [
+        {
+            "id": s.id,
+            "exercise": s.exercise,
+            "rep_count": s.rep_count,
+            "avg_accuracy": s.avg_accuracy,
+            "date": s.created_at.strftime("%Y-%m-%d %H:%M")
+        } for s in sessions
+    ]
 
 # ---------- Workout Plan Generator ----------
 @app.post("/api/workout/generate")
@@ -799,7 +819,6 @@ async def compare_before_after(db: Session = Depends(get_db), current_user: dict
     if not before_meas or not after_meas:
         return {"has_before": True, "has_after": True, "comparison": {"message": "Could not detect body in one photo", "estimated_change": "N/A"}, "before_url": before_log.photo_url, "after_url": after_log.photo_url}
 
-    # --- rest of the comparison logic (unchanged) ---
     whr_change = after_meas["waist_to_hip_ratio"] - before_meas["waist_to_hip_ratio"]
     shoulder_change = after_meas["shoulder_to_waist_ratio"] - before_meas["shoulder_to_waist_ratio"]
 
@@ -852,14 +871,7 @@ async def compare_before_after(db: Session = Depends(get_db), current_user: dict
         }
     }
 
-
-
-from pydantic import BaseModel
-
-class WhatsAppReminderRequest(BaseModel):
-    reminder_type: str
-    phone_number: str
-
+# ---------- WhatsApp Reminder ----------
 @app.post("/api/reminders/whatsapp")
 def whatsapp_reminder(req: WhatsAppReminderRequest, current_user: dict = Depends(get_current_user)):
     import urllib.parse
@@ -868,8 +880,6 @@ def whatsapp_reminder(req: WhatsAppReminderRequest, current_user: dict = Depends
     encoded_msg = urllib.parse.quote(message)
     wa_link = f"https://wa.me/{clean_number}?text={encoded_msg}"
     return {"whatsapp_link": wa_link}
-
-
 
 # ---------- Root ----------
 @app.get("/")
