@@ -1,7 +1,10 @@
+// src/pages/Login.jsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import { FiLogIn, FiMail, FiLock } from 'react-icons/fi';
+import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -15,7 +18,18 @@ export default function Login() {
     setError('');
     try {
       const res = await api.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', res.data.access_token);
+      const token = res.data.access_token;
+
+      // Store token depending on platform
+      if (Capacitor.isNativePlatform()) {
+        // Capacitor native (APK)
+        await Preferences.set({ key: 'token', value: token });
+      } else {
+        // Web browser
+        localStorage.setItem('token', token);
+      }
+
+      // Redirect to dashboard
       window.location.href = '/';
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed. Check email/password.');
