@@ -51,6 +51,9 @@ app.add_middleware(
     allow_origins=[
         "https://ai-fitness-model-9mlw.vercel.app",
         "http://localhost:5173",
+        "capacitor://localhost",          # ← Capacitor Android
+        "http://localhost",               # ← fallback
+        "https://localhost",              # ← fallback
     ],
     allow_credentials=True,
     allow_methods=["*"],
