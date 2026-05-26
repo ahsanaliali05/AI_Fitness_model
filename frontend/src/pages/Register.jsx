@@ -1,7 +1,10 @@
+// src/pages/Register.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { FiUserPlus, FiUser, FiMail, FiLock } from 'react-icons/fi';
+import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -17,8 +20,14 @@ export default function Register() {
     setError('');
     try {
       await api.post('/api/auth/register', { name, email, password });
+
       // Clear any existing token (just in case)
-      localStorage.removeItem('token');
+      if (Capacitor.isNativePlatform()) {
+        await Preferences.remove({ key: 'token' });
+      } else {
+        localStorage.removeItem('token');
+      }
+
       // Navigate to login page
       navigate('/login');
     } catch (err) {
