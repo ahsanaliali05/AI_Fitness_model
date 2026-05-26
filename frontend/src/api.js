@@ -1,17 +1,32 @@
 import axios from 'axios';
+import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-console.log('API Base URL:', API_BASE_URL);  // temporary debug
+// Hardcoded backend URL for mobile app
+const API_BASE_URL = 'https://ai-fitness-backend-w99e.onrender.com';
+
+console.log('🚀 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+// Request interceptor – adds token from the correct storage
+api.interceptors.request.use(async (config) => {
+  let token = null;
+
+  if (Capacitor.isNativePlatform()) {
+    // Native (APK) – use Capacitor Preferences
+    const { value } = await Preferences.get({ key: 'token' });
+    token = value;
+  } else {
+    // Web browser – use localStorage
+    token = localStorage.getItem('token');
+  }
+
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;  // ✅ fixed missing token
   }
   return config;
 });
