@@ -35,7 +35,7 @@ except:
     redis_client = None
     print("Redis not available – caching disabled")
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 # ---------- Cloudinary Configuration ----------
 cloudinary.config(
