@@ -1,0 +1,36 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build web assets
+        run: npm run build
+        
+      - name: Sync Capacitor
+        run: npx cap sync
+        
+      - name: Build iOS app
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
+          
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: app.ipa
+          path: ios/App/build/Build/Products/Release-iphoneos/*.ipa
